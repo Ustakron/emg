@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>EMG Help Request System</title>
+  <!-- โหลด mqtt.js สำหรับใช้งานในฝั่ง browser -->
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <style>
+    /* พื้นหลังแบบ gradient และตัวอักษรที่อ่านง่าย */
+    body {
+      font-family: 'Arial', sans-serif;
+      background: linear-gradient(135deg, #f0f4f8, #d9e2ec);
+      color: #2c3e50;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      text-align: center;
+    }
+    .container {
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+      padding: 30px;
+      width: 100%;
+      max-width: 600px;
+      animation: fadeIn 1s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    h1 {
+      color: #2980b9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      animation: slideDown 1s ease;
+    }
+    @keyframes slideDown {
+      from { transform: translateY(-20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    h1 svg {
+      margin-right: 10px;
+    }
+    .status-box {
+      background-color: #e6f2ff;
+      border: 2px solid #3498db;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 20px;
+      font-size: 18px;
+      position: relative;
+      overflow: hidden;
+    }
+    /* คลาสสำหรับแอนิเมชันข้อความ */
+    .animate {
+      animation: slideIn 0.5s ease-out;
+    }
+    @keyframes slideIn {
+      0% { transform: translateY(-20px); opacity: 0; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+    .volume-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .volume-container label {
+      margin-right: 10px;
+    }
+    .volume-container input {
+      flex-grow: 1;
+      max-width: 200px;
+    }
+    .config {
+      background-color: #f1f5f9;
+      border-radius: 10px;
+      padding: 15px;
+      margin-top: 20px;
+      text-align: left;
+    }
+    .config h2 {
+      margin-bottom: 15px;
+      color: #2980b9;
+    }
+    .config div {
+      margin-bottom: 10px;
+    }
+    .config input {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    .config button {
+      background-color: #2980b9;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background-color 0.3s ease;
+    }
+    .config button:hover {
+      background-color: #1f6391;
+    }
+    .emg-status p {
+      margin: 10px 0;
+      padding: 8px;
+      border-radius: 5px;
+      background-color: #f1f5f9;
+      transition: background-color 0.3s ease;
+    }
+    .emg-status p:hover {
+      background-color: #e2e8f0;
+    }
+    #emgConnectionBox {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background-color: #e74c3c;
+      color: white;
+      padding: 10px 15px;
+      border-radius: 5px;
+      font-size: 14px;
+      transition: background-color 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>
+      <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2980b9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 12l2 2 4-4m2 2a9 9 0 11-9-9 9 9 0 019 9z"/>
+      </svg>
+      EMG Help Request System
+    </h1>
+
+    <div class="status-box" id="alertMessage">Waiting for EMG Data...</div>
+
+    <div class="volume-container">
+      <label for="volumeSlider">🔊 Adjust Volume:</label>
+      <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="0.5">
+      <span id="volumeValue">0.5</span>
+    </div>
+
+    <div class="emg-status">
+      <p id="status0">Thumb(นิ้วโป้ง) - 🚨 HELP! Emergency!</p>
+      <p id="status1">Index(นิ้วชี้) - ✅ Resting (Normal)</p>
+      <p id="status2">Middle(นิ้วกลาง) - ⚠️ Light Movement Detected</p>
+      <p id="status3">Ring(นิ้วนาง) - 🔔 Active Movement Detected</p>
+      <p id="status4">Little(นิ้วก้อย) - 🚑 High Emergency!</p>
+    </div>
+
+    <div class="config">
+      <h2>📝 ตั้งค่าข้อความแจ้งเตือน</h2>
+      <div>
+        <label>EMG 0:</label>
+        <input type="text" id="emg0Text" value="🚨 HELP! Emergency!">
+      </div>
+      <div>
+        <label>EMG 1:</label>
+        <input type="text" id="emg1Text" value="✅ Resting (Normal)">
+      </div>
+      <div>
+        <label>EMG 2:</label>
+        <input type="text" id="emg2Text" value="⚠️ Light Movement Detected">
+      </div>
+      <div>
+        <label>EMG 3:</label>
+        <input type="text" id="emg3Text" value="🔔 Active Movement Detected">
+      </div>
+      <div>
+        <label>EMG 4:</label>
+        <input type="text" id="emg4Text" value="🚑 High Emergency!">
+      </div>
+      <button id="saveText">💾 บันทึกข้อความ</button>
+    </div>
+
+    <audio id="alertAudio" preload="auto"></audio>
+  </div>
+
+  <div id="emgConnectionBox">EMG Disconnected</div>
+  
+  <script>
+    // ตั้งค่า MQTT connection ผ่าน WebSocket
+    // ใช้ endpoint wss://test.mosquitto.org:8081 สำหรับการเชื่อมต่อแบบ secure
+    const client = mqtt.connect('wss://test.mosquitto.org:8081');
+
+    // อ้างอิง element ในหน้า HTML
+    const connectionStatus = document.getElementById('emgConnectionBox');
+    const alertAudio = document.getElementById('alertAudio');
+    const alertMessage = document.getElementById('alertMessage');
+    const volumeSlider = document.getElementById('volumeSlider');
+    const volumeValue = document.getElementById('volumeValue');
+
+    const alertSounds = {
+      0: 'help.mp3',   // Thumb (ตรวจสอบให้แน่ใจว่าไฟล์มีอยู่ในโฟลเดอร์เดียวกัน)
+      1: 'alarm.mp3',  // Index
+      2: 'alarm.mp3',  // Middle
+      3: 'alarm.mp3',  // Ring
+      4: 'help.mp3'    // Little
+    };
+
+    // Alert texts ที่สามารถปรับแต่งได้
+    const alertTexts = {
+      0: document.getElementById('emg0Text').value,
+      1: document.getElementById('emg1Text').value,
+      2: document.getElementById('emg2Text').value,
+      3: document.getElementById('emg3Text').value,
+      4: document.getElementById('emg4Text').value
+    };
+
+    volumeSlider.addEventListener('input', () => {
+      volumeValue.textContent = volumeSlider.value;
+    });
+
+    // บันทึกข้อความแจ้งเตือนใหม่
+    document.getElementById('saveText').addEventListener('click', () => {
+      alertTexts[0] = document.getElementById('emg0Text').value;
+      alertTexts[1] = document.getElementById('emg1Text').value;
+      alertTexts[2] = document.getElementById('emg2Text').value;
+      alertTexts[3] = document.getElementById('emg3Text').value;
+      alertTexts[4] = document.getElementById('emg4Text').value;
+      alert("✅ บันทึกข้อความเรียบร้อย!");
+    });
+
+    let lastHeartbeat = Date.now();
+
+    // เมื่อเชื่อมต่อกับ MQTT broker สำเร็จ
+    client.on('connect', () => {
+      console.log('Connected to MQTT broker');
+      connectionStatus.textContent = "Connected";
+      connectionStatus.style.backgroundColor = "#2ecc71";
+      // สมัครรับข้อมูลทุกหัวข้อที่ขึ้นต้นด้วย emg/
+      client.subscribe('emg/#', (err) => {
+        if(err) {
+          console.error('Subscription error:', err);
+        }
+      });
+    });
+
+    // เมื่อได้รับข้อความจาก MQTT
+    client.on('message', (topic, message) => {
+      const msg = message.toString();
+      console.log(`Topic: ${topic}, Message: ${msg}`);
+      
+      // อัปเดต UI ตามหัวข้อที่ได้รับ
+      if(topic === 'emg/heartbeat'){
+        lastHeartbeat = Date.now();
+        connectionStatus.textContent = "EMG Connected";
+        connectionStatus.style.backgroundColor = "#2ecc71";
+      }
+      else if(topic === 'emg/status' && msg === "Leads off"){
+        alertMessage.textContent = "Leads off detected!";
+        connectionStatus.textContent = "EMG Disconnected";
+        connectionStatus.style.backgroundColor = "#e74c3c";
+      }
+      else if(topic === 'emg/level'){
+        // หากข้อความไม่ใช่ heartbeat ให้แสดงผลเป็นระดับ EMG
+        const emgValue = parseInt(msg);
+        alertMessage.textContent = "EMG " + emgValue + ": " + (alertTexts[emgValue] || "Unknown");
+
+        // รีเซ็ตแอนิเมชันเพื่อให้ข้อความขยับใหม่
+        alertMessage.classList.remove('animate');
+        void alertMessage.offsetWidth;
+        alertMessage.classList.add('animate');
+
+        alertAudio.src = alertSounds[emgValue] || 'alarm.mp3';
+        alertAudio.volume = parseFloat(volumeSlider.value);
+        alertAudio.play();
+      }
+    });
+
+    // ตรวจสอบ heartbeat ทุกๆ 1 วินาที
+    setInterval(() => {
+      if (Date.now() - lastHeartbeat > 3000) {
+        connectionStatus.textContent = "EMG Disconnected";
+        connectionStatus.style.backgroundColor = "#e74c3c";
+      }
+    }, 1000);
+  </script>
+</body>
+</html>
