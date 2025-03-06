@@ -140,7 +140,7 @@
       <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2980b9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M10 12l2 2 4-4m2 2a9 9 0 11-9-9 9 9 0 019 9z"/>
       </svg>
-    🏥EMG Help Request System
+      EMG Help Request System
     </h1>
 
     <div class="status-box" id="alertMessage">Waiting for EMG Data...</div>
@@ -238,8 +238,10 @@
     });
 
     let lastHeartbeat = 0;
-    // flag สำหรับควบคุมการแจ้งเตือน (ในช่วงที่ alertActive = true จะไม่รับแจ้งเตือนใหม่)
+    // flag ควบคุมการแจ้งเตือน
     let alertActive = false;
+    // ตัวแปรสำหรับเก็บ timeout ID
+    let alertTimeout = null;
 
     client.on('connect', () => {
       console.log('Connected to MQTT broker');
@@ -262,16 +264,18 @@
         connectionStatus.style.backgroundColor = "#2ecc71";
       }
       else if(topic === 'emg/status' && msg === "Leads off"){
-        // ในกรณี Leads off จะเปลี่ยนข้อความทันที
+        // กรณี Leads off ให้แสดงข้อความทันที
         alertMessage.textContent = "Leads off detected!";
         connectionStatus.textContent = "EMG Disconnected";
         connectionStatus.style.backgroundColor = "#e74c3c";
       }
       else if(topic === 'emg/level'){
-        // หากมีการแจ้งเตือนอยู่แล้วให้ข้ามการแจ้งเตือนใหม่
-        if(alertActive) return;
+        // หาก alertActive อยู่แล้วให้ข้ามข้อความใหม่
+        if(alertActive) {
+          console.log("Alert is active; ignoring new emg/level message.");
+          return;
+        }
         alertActive = true;
-
         const emgValue = parseInt(msg);
         console.log("Alert triggered for EMG", emgValue);
 
@@ -284,10 +288,11 @@
         alertAudio.volume = parseFloat(volumeSlider.value);
         alertAudio.play();
 
-        // ค้างข้อความแจ้งเตือนเป็นเวลา 10 วินาที จากนั้น reset
-        setTimeout(() => {
+        // เริ่ม timeout สำหรับค้างการแจ้งเตือน 10 วินาที
+        alertTimeout = setTimeout(() => {
           alertActive = false;
           alertMessage.textContent = "Waiting for EMG Data...";
+          console.log("Alert reset after 10 seconds");
         }, 10000);
       }
     });
@@ -296,7 +301,6 @@
     setInterval(() => {
       const timeSinceHeartbeat = Date.now() - lastHeartbeat;
       console.log("Time since last heartbeat:", timeSinceHeartbeat, "ms");
-      // ตรวจสอบเฉพาะเมื่อไม่มี alertActive อยู่
       if (timeSinceHeartbeat > 15000 && !alertActive) {
         connectionStatus.textContent = "EMG Disconnected";
         connectionStatus.style.backgroundColor = "#e74c3c";
