@@ -123,13 +123,22 @@
     .emg-status p:hover {
       background-color: #e2e8f0;
     }
+    /* สถานะเชื่อมต่อที่มุมบนขวา */
+    #emgConnectionBox {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background-color: #e74c3c;
+      color: white;
+      padding: 10px 15px;
+      border-radius: 5px;
+      font-size: 14px;
+      transition: background-color 0.3s ease;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <!-- ย้ายสถานะเชื่อมต่อ EMG มาไว้ด้านบนสุด -->
-    <div id="emgConnectionBox" style="background-color:#e74c3c; color:white; padding:10px 15px; border-radius:5px; font-size:14px; margin-bottom:20px;">EMG Disconnected</div>
-    
     <h1>
       <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2980b9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M10 12l2 2 4-4m2 2a9 9 0 11-9-9 9 9 0 019 9z"/>
@@ -145,19 +154,21 @@
       <span id="volumeValue">0.5</span>
     </div>
 
+    <!-- แสดงสถานะนิ้วด้วยชื่อที่ปรับแล้ว -->
     <div class="emg-status">
-      <p id="status0">Thumb(นิ้วโป้ง) - 🚨 HELP! Emergency!</p>
-      <p id="status1">Index(นิ้วชี้) - ✅ Resting (Normal)</p>
-      <p id="status2">Middle(นิ้วกลาง) - ⚠️ Light Movement Detected</p>
-      <p id="status3">Ring(นิ้วนาง) - 🔔 Active Movement Detected</p>
-      <p id="status4">Little(นิ้วก้อย) - 🚑 High Emergency!</p>
+      <p id="status0">นิ้วหัวแม่มือ - คุัีเ้่ิืที่สทม /gx]ujpoc]h;</p>
+      <p id="status1">นิ้วชี้ - ✅ Resting (Normal)</p>
+      <p id="status2">นิ้วกลาง - ⚠️ Light Movement Detected</p>
+      <p id="status3">นิ้วนาง - 🔔 Active Movement Detected</p>
+      <p id="status4">นิ้วก้อย - 🚑 High Emergency!</p>
     </div>
 
+    <!-- ตั้งค่าข้อความแจ้งเตือน -->
     <div class="config">
       <h2>📝 ตั้งค่าข้อความแจ้งเตือน</h2>
       <div>
         <label>EMG 0:</label>
-        <input type="text" id="emg0Text" value="🚨 HELP! Emergency!">
+        <input type="text" id="emg0Text" value="คุัีเ้่ิืที่สทม /gx]ujpoc]h;">
       </div>
       <div>
         <label>EMG 1:</label>
@@ -180,9 +191,12 @@
 
     <audio id="alertAudio" preload="auto"></audio>
   </div>
+
+  <!-- สถานะเชื่อมต่อแสดงที่มุมบนขวา -->
+  <div id="emgConnectionBox">EMG Disconnected</div>
   
   <script>
-    // ตั้งค่า MQTT connection ผ่าน WebSocket
+    // ตั้งค่า MQTT connection ผ่าน WebSocket (secure) ที่ wss://test.mosquitto.org:8081
     const client = mqtt.connect('wss://test.mosquitto.org:8081');
 
     const connectionStatus = document.getElementById('emgConnectionBox');
@@ -192,11 +206,11 @@
     const volumeValue = document.getElementById('volumeValue');
 
     const alertSounds = {
-      0: 'help.mp3',   // Thumb
-      1: 'alarm.mp3',  // Index
-      2: 'alarm.mp3',  // Middle
-      3: 'alarm.mp3',  // Ring
-      4: 'help.mp3'    // Little
+      0: 'help.mp3',   // นิ้วหัวแม่มือ
+      1: 'alarm.mp3',  // นิ้วชี้
+      2: 'alarm.mp3',  // นิ้วกลาง
+      3: 'alarm.mp3',  // นิ้วนาง
+      4: 'help.mp3'    // นิ้วก้อย
     };
 
     // ตั้งค่า alert texts จาก input (EMG 0-4)
@@ -222,14 +236,12 @@
       alert("✅ บันทึกข้อความเรียบร้อย!");
     });
 
-    let lastHeartbeat = Date.now();
+    // เริ่มต้น lastHeartbeat ที่ 0 เพื่อให้สถานะเริ่มต้นเป็น Disconnected
+    let lastHeartbeat = 0;
 
-    // เมื่อเชื่อมต่อกับ MQTT broker สำเร็จ
+    // เมื่อเชื่อมต่อกับ MQTT broker สำเร็จ (ไม่เปลี่ยนสถานะที่นี่)
     client.on('connect', () => {
       console.log('Connected to MQTT broker');
-      connectionStatus.textContent = "EMG Connected";
-      connectionStatus.style.backgroundColor = "#2ecc71";
-      // สมัครรับข้อมูลทุกหัวข้อที่ขึ้นต้นด้วย emg/
       client.subscribe('emg/#', (err) => {
         if(err) {
           console.error('Subscription error:', err);
@@ -242,7 +254,8 @@
       const msg = message.toString();
       console.log(`Topic: ${topic}, Message: ${msg}`);
       
-      if(topic === 'emg/heartbeat'){
+      // หากได้รับ heartbeat "5" ให้อัปเดตสถานะว่าเชื่อมต่อ
+      if(topic === 'emg/heartbeat' && msg === "5"){
         lastHeartbeat = Date.now();
         connectionStatus.textContent = "EMG Connected";
         connectionStatus.style.backgroundColor = "#2ecc71";
@@ -253,11 +266,11 @@
         connectionStatus.style.backgroundColor = "#e74c3c";
       }
       else if(topic === 'emg/level'){
-        // แสดงผลระดับ EMG พร้อมข้อความที่ปรับแต่งได้
+        // แสดงผลระดับ EMG พร้อมข้อความแจ้งเตือนตาม config ที่ตั้งไว้
         const emgValue = parseInt(msg);
         alertMessage.textContent = "EMG " + emgValue + ": " + (alertTexts[emgValue] || "Unknown");
 
-        // รีเซ็ตแอนิเมชันเพื่อให้ข้อความขยับใหม่
+        // รีเซ็ตแอนิเมชันเพื่อให้ข้อความเคลื่อนไหวใหม่
         alertMessage.classList.remove('animate');
         void alertMessage.offsetWidth;
         alertMessage.classList.add('animate');
@@ -268,9 +281,9 @@
       }
     });
 
-    // ตรวจสอบ heartbeat ทุกๆ 1 วินาที และรีเซ็ตสถานะเมื่อไม่ได้รับค่า
+    // ตรวจสอบ heartbeat ทุกๆ 1 วินาที หากไม่ได้รับ heartbeat ภายใน 10 วินาที ให้แสดงสถานะ Disconnected
     setInterval(() => {
-      if (Date.now() - lastHeartbeat > 3000) {
+      if (Date.now() - lastHeartbeat > 10000) {
         connectionStatus.textContent = "EMG Disconnected";
         connectionStatus.style.backgroundColor = "#e74c3c";
         alertMessage.textContent = "Waiting for EMG Data...";
