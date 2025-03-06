@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>EMG Help Request System with 10s Alert Hold</title>
+  <title>EMG Help Request System</title>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <style>
     body {
@@ -121,7 +121,7 @@
       1: 'alarm.mp3', 
       2: 'alarm.mp3', 
       3: 'alarm.mp3', 
-      4: 'help.mp3'
+      4: 'alarm.mp3'
     };
     const alertTexts = {
       0: document.getElementById('emg0Text').value,
@@ -178,6 +178,7 @@
         alertMessage.textContent = "Leads off detected!";
         connectionStatus.textContent = "EMG Disconnected";
         connectionStatus.style.backgroundColor = "#e74c3c";
+        showNotification("EMG Disconnected", "Leads off detected!");
       }
       else if (topic === 'emg/level') {
         // เมื่อได้รับข้อมูล EMG level อัปเดต lastHeartbeat
@@ -207,6 +208,8 @@
             console.log("Alert reset after 10 seconds");
           }
         }, 10000);
+
+        showNotification("EMG Level Alert", `EMG level ${emgValue} detected!`);
       }
     });
 
@@ -220,6 +223,21 @@
         alertMessage.textContent = "Waiting for EMG Data...";
       }
     }, 1000);
+
+    // ฟังก์ชั่นแสดงการแจ้งเตือนในเบราเซอร์
+    function showNotification(title, body) {
+      if (Notification.permission === 'granted') {
+        new Notification(title, {
+          body: body,
+          icon: 'https://www.example.com/icon.png',
+        });
+      }
+    }
+
+    // ขออนุญาตให้แสดงการแจ้งเตือน
+    if (Notification.permission !== 'granted') {
+      Notification.requestPermission();
+    }
   </script>
 </body>
 </html>
