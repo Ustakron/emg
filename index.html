@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>EMG Help Request System with Debugging</title>
+  <title>EMG Help Request System with 10s Alert</title>
   <!-- โหลด mqtt.js สำหรับใช้งานในฝั่ง browser -->
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <style>
@@ -190,7 +190,7 @@
   <div id="emgConnectionBox">EMG Disconnected</div>
   
   <script>
-    // ตั้งค่า MQTT connection ผ่าน WebSocket ที่ wss://test.mosquitto.org:8081
+    // เชื่อมต่อ MQTT ผ่าน WebSocket
     const client = mqtt.connect('wss://test.mosquitto.org:8081');
 
     const connectionStatus = document.getElementById('emgConnectionBox');
@@ -207,7 +207,7 @@
       4: 'help.mp3'
     };
 
-    // ตั้งค่า alert texts เริ่มต้นจากค่าที่อยู่ใน input
+    // กำหนดข้อความแจ้งเตือนเริ่มต้นจาก input
     const alertTexts = {
       0: document.getElementById('emg0Text').value,
       1: document.getElementById('emg1Text').value,
@@ -220,7 +220,7 @@
       volumeValue.textContent = volumeSlider.value;
     });
 
-    // บันทึกข้อความแจ้งเตือนใหม่และอัปเดตสถานะ
+    // บันทึกและอัปเดตข้อความแจ้งเตือน
     document.getElementById('saveText').addEventListener('click', () => {
       alertTexts[0] = document.getElementById('emg0Text').value;
       alertTexts[1] = document.getElementById('emg1Text').value;
@@ -238,6 +238,8 @@
     });
 
     let lastHeartbeat = 0;
+    // flag สำหรับควบคุมการแจ้งเตือน (เมื่อ active แล้วจะไม่รับแจ้งเตือนใหม่จนกว่า 10 วิจะผ่านไป)
+    let alertActive = false;
 
     client.on('connect', () => {
       console.log('Connected to MQTT broker');
@@ -265,7 +267,14 @@
         connectionStatus.style.backgroundColor = "#e74c3c";
       }
       else if(topic === 'emg/level'){
+        // หากมีการแจ้งเตือนอยู่แล้วให้ข้ามการแจ้งเตือนใหม่
+        if(alertActive) return;
+        alertActive = true;
+
         const emgValue = parseInt(msg);
+        console.log("Alert triggered for EMG", emgValue);
+
+        // แสดงข้อความแจ้งเตือนและเล่นเสียง
         alertMessage.textContent = "EMG " + emgValue + ": " + (alertTexts[emgValue] || "Unknown");
         alertMessage.classList.remove('animate');
         void alertMessage.offsetWidth;
@@ -273,10 +282,16 @@
         alertAudio.src = alertSounds[emgValue] || 'alarm.mp3';
         alertAudio.volume = parseFloat(volumeSlider.value);
         alertAudio.play();
+
+        // รักษาสถานะแจ้งเตือนเป็นเวลา 10 วิ ก่อนที่จะยอมรับการแจ้งเตือนใหม่
+        setTimeout(() => {
+          alertActive = false;
+          alertMessage.textContent = "Waiting for EMG Data...";
+        }, 10000);
       }
     });
 
-    // ตรวจสอบ heartbeat ทุก 1 วินาที หากไม่ได้รับภายใน 15 วินาที ให้แสดงสถานะ Disconnected
+    // ตรวจสอบ heartbeat ทุกวินาที หากไม่ได้รับภายใน 15 วิ ให้แสดงสถานะ Disconnected
     setInterval(() => {
       const timeSinceHeartbeat = Date.now() - lastHeartbeat;
       console.log("Time since last heartbeat:", timeSinceHeartbeat, "ms");
@@ -287,7 +302,7 @@
       }
     }, 1000);
 
-    // ตรวจจับการตัดการเชื่อมต่อและลอง reconnect ใหม่
+    // จับเหตุการณ์การตัดการเชื่อมต่อและลอง reconnect ใหม่
     client.on('close', () => {
       console.warn("MQTT Connection Lost. Attempting to reconnect...");
       connectionStatus.textContent = "Reconnecting...";
@@ -297,7 +312,6 @@
       }, 3000);
     });
 
-    // จับ error event และ log ข้อผิดพลาด
     client.on('error', (error) => {
       console.error("MQTT Error:", error);
     });
