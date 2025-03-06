@@ -34,18 +34,12 @@
     }
     h1 {
       color: #2980b9;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       margin-bottom: 20px;
       animation: slideDown 1s ease;
     }
     @keyframes slideDown {
       from { transform: translateY(-20px); opacity: 0; }
       to { transform: translateY(0); opacity: 1; }
-    }
-    h1 svg {
-      margin-right: 10px;
     }
     .status-box {
       background-color: #e6f2ff;
@@ -136,12 +130,8 @@
 </head>
 <body>
   <div class="container">
-    <h1>
-      <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2980b9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M10 12l2 2 4-4m2 2a9 9 0 11-9-9 9 9 0 019 9z"/>
-      </svg>
-      EMG Help Request System
-    </h1>
+    <!-- หัวข้อโดยไม่มีอิโมจิ/ไอคอน -->
+    <h1>EMG Help Request System</h1>
 
     <div class="status-box" id="alertMessage">Waiting for EMG Data...</div>
 
@@ -264,22 +254,21 @@
         connectionStatus.style.backgroundColor = "#2ecc71";
       }
       else if(topic === 'emg/status' && msg === "Leads off"){
-        // กรณี Leads off ให้แสดงข้อความทันที
+        // ในกรณี Leads off ไม่อัปเดต lastHeartbeat
         alertMessage.textContent = "Leads off detected!";
         connectionStatus.textContent = "EMG Disconnected";
         connectionStatus.style.backgroundColor = "#e74c3c";
       }
       else if(topic === 'emg/level'){
-        // หาก alertActive อยู่แล้วให้ข้ามข้อความใหม่
+        // อัปเดต lastHeartbeat เมื่อได้รับข้อมูล EMG level
+        lastHeartbeat = Date.now();
+        const emgValue = parseInt(msg);
+        console.log("Alert triggered for EMG", emgValue);
         if(alertActive) {
           console.log("Alert is active; ignoring new emg/level message.");
           return;
         }
         alertActive = true;
-        const emgValue = parseInt(msg);
-        console.log("Alert triggered for EMG", emgValue);
-
-        // แสดงข้อความแจ้งเตือนและเล่นเสียง
         alertMessage.textContent = "EMG " + emgValue + ": " + (alertTexts[emgValue] || "Unknown");
         alertMessage.classList.remove('animate');
         void alertMessage.offsetWidth;
