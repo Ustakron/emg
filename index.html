@@ -126,10 +126,6 @@
       font-size: 14px;
       transition: background-color 0.3s ease;
     }
-    .alert-active {
-      background-color: #ffdddd !important;
-      border-color: #e74c3c !important;
-    }
   </style>
 </head>
 <body>
@@ -183,11 +179,6 @@
   <div id="emgConnectionBox">EMG Disconnected</div>
   
   <script>
-    // ขออนุญาตการแจ้งเตือนทันทีที่โหลดหน้า
-    if (Notification.permission !== "granted" && Notification.permission !== "denied") {
-      Notification.requestPermission();
-    }
-
     // เชื่อมต่อ MQTT ผ่าน WebSocket
     const client = mqtt.connect('wss://test.mosquitto.org:8081');
 
@@ -202,7 +193,7 @@
       1: 'alarm.mp3', 
       2: 'alarm.mp3', 
       3: 'alarm.mp3', 
-      4: 'alarm.mp3'
+      4: 'help.mp3'
     };
 
     // กำหนดข้อความแจ้งเตือนเริ่มต้นจาก input
@@ -240,10 +231,6 @@
     let alertActive = false;
     // ตัวแปรสำหรับเก็บ timeout ID
     let alertTimeout = null;
-    // สถานะการเชื่อมต่อ EMG
-    let emgConnected = false;
-    // ตัวแปรเก็บการแจ้งเตือนปัจจุบัน
-    let currentNotification = null;
 
     client.on('connect', () => {
       console.log('Connected to MQTT broker');
@@ -262,37 +249,19 @@
 
       if(topic === 'emg/heartbeat' && msg === "5"){
         lastHeartbeat = Date.now();
-        
-        // อัปเดตสถานะการเชื่อมต่อเฉพาะเมื่อสถานะเปลี่ยน
-        if (!emgConnected) {
-          emgConnected = true;
-          connectionStatus.textContent = "EMG Connected";
-          connectionStatus.style.backgroundColor = "#2ecc71";
-        }
+        connectionStatus.textContent = "EMG Connected";
+        connectionStatus.style.backgroundColor = "#2ecc71";
       }
       else if(topic === 'emg/status' && msg === "Leads off"){
-        // ในกรณี Leads off ให้แสดงข้อความเตือนทันที
-        alertMessage.textContent = "Leads off detected!";
-        emgConnected = false;
+        // ไม่แสดงข้อความ "Leads off detected!" ในเว็บ
         connectionStatus.textContent = "EMG Disconnected";
         connectionStatus.style.backgroundColor = "#e74c3c";
       }
       else if(topic === 'emg/level'){
         // อัปเดต lastHeartbeat เมื่อได้รับข้อมูล EMG level
         lastHeartbeat = Date.now();
-        
-        // รีเซ็ตสถานะการเชื่อมต่อ EMG
-        if (!emgConnected) {
-          emgConnected = true;
-          connectionStatus.textContent = "EMG Connected";
-          connectionStatus.style.backgroundColor = "#2ecc71";
-        }
-        
         const emgValue = parseInt(msg);
         console.log("Alert triggered for EMG", emgValue);
-        
-        // เปลี่ยนสีกล่องแจ้งเตือนเมื่อมีการแจ้งเตือน
-        alertMessage.classList.add('alert-active');
         
         // ถ้าแจ้งเตือนค้างอยู่แล้ว ให้เคลียร์ timeout เดิมและอัปเดตข้อความใหม่
         if(alertActive) {
@@ -301,64 +270,48 @@
           alertActive = true;
         }
         
-        // ปรับปรุงข้อความแจ้งเตือน
         alertMessage.textContent = "EMG " + emgValue + ": " + (alertTexts[emgValue] || "Unknown");
         alertMessage.classList.remove('animate');
         void alertMessage.offsetWidth;
         alertMessage.classList.add('animate');
-        
-        // เล่นเสียงเตือน
         alertAudio.src = alertSounds[emgValue] || 'alarm.mp3';
         alertAudio.volume = parseFloat(volumeSlider.value);
         alertAudio.play();
 
-        // ปิดการแจ้งเตือนเก่า (ถ้ามี) ก่อนสร้างการแจ้งเตือนใหม่
-        if (currentNotification) {
-          currentNotification.close();
-        }
-
         // ตรวจสอบสิทธิ์การแจ้งเตือนผ่าน Browser Notification
         if (Notification.permission === "granted") {
-          currentNotification = new Notification("EMG Alert", {
+          new Notification("EMG Alert", {
             body: "EMG " + emgValue + ": " + (alertTexts[emgValue] || "Unknown"),
-            icon: "data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23e74c3c'/%3E%3Cpath d='M32 16v16h16' stroke='white' stroke-width='4' fill='none'/%3E%3C/svg%3E"
+            // icon: "path/to/icon.png" // เพิ่ม path ไฟล์ icon หากต้องการ
           });
         } else if (Notification.permission !== "denied") {
           Notification.requestPermission().then(permission => {
             if (permission === "granted") {
-              currentNotification = new Notification("EMG Alert", {
+              new Notification("EMG Alert", {
                 body: "EMG " + emgValue + ": " + (alertTexts[emgValue] || "Unknown"),
-                icon: "data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23e74c3c'/%3E%3Cpath d='M32 16v16h16' stroke='white' stroke-width='4' fill='none'/%3E%3C/svg%3E"
+                // icon: "path/to/icon.png"
               });
             }
           });
         }
 
-        // เริ่ม timeout สำหรับค้างการแจ้งเตือน 10 วินาที
+        // เริ่ม timeout สำหรับค้างการแจ้งเตือน 10 วินาที (หรือรีเซ็ตใหม่ถ้า trigger อีกครั้ง)
         alertTimeout = setTimeout(() => {
           alertActive = false;
           alertMessage.textContent = "Waiting for EMG Data...";
-          alertMessage.classList.remove('alert-active');
           console.log("Alert reset after 10 seconds");
         }, 10000);
       }
     });
 
-    // ตรวจสอบ heartbeat ทุก 1 วินาที
+    // ตรวจสอบ heartbeat ทุก 1 วินาที หากไม่ได้รับภายใน 15 วินาที (และไม่มี alert ค้างอยู่) ให้รีเซ็ตข้อความ
     setInterval(() => {
       const timeSinceHeartbeat = Date.now() - lastHeartbeat;
       console.log("Time since last heartbeat:", timeSinceHeartbeat, "ms");
-      
-      // ถ้าไม่ได้รับ heartbeat นานเกิน 15 วินาที และยังไม่มีการแสดงแจ้งเตือน
-      if (timeSinceHeartbeat > 15000 && emgConnected) {
-        emgConnected = false;
+      if (timeSinceHeartbeat > 15000 && !alertActive) {
         connectionStatus.textContent = "EMG Disconnected";
         connectionStatus.style.backgroundColor = "#e74c3c";
-        
-        // ไม่ต้องเปลี่ยนข้อความบนกล่องแจ้งเตือนหากกำลังมีการแจ้งเตือนอยู่
-        if (!alertActive) {
-          alertMessage.textContent = "Waiting for EMG Data...";
-        }
+        alertMessage.textContent = "Waiting for EMG Data...";
       }
     }, 1000);
 
