@@ -154,13 +154,13 @@
       <span id="volumeValue">0.5</span>
     </div>
 
-    <!-- แสดงสถานะนิ้วด้วยชื่อที่ปรับแล้ว -->
+    <!-- แสดงสถานะนิ้วตามชื่อที่กำหนดไว้ -->
     <div class="emg-status">
-      <p id="status0">นิ้วหัวแม่มือ - คุัีเ้่ิืที่สทม /gx]ujpoc]h;</p>
-      <p id="status1">นิ้วชี้ - ✅ Resting (Normal)</p>
-      <p id="status2">นิ้วกลาง - ⚠️ Light Movement Detected</p>
-      <p id="status3">นิ้วนาง - 🔔 Active Movement Detected</p>
-      <p id="status4">นิ้วก้อย - 🚑 High Emergency!</p>
+      <p id="status0">Thumb(นิ้วโป้ง) - EMG0: ค่าตั้งต้น</p>
+      <p id="status1">Index(นิ้วชี้) - EMG1: ค่าตั้งต้น</p>
+      <p id="status2">Middle(นิ้วกลาง) - EMG2: ค่าตั้งต้น</p>
+      <p id="status3">Ring(นิ้วนาง) - EMG3: ค่าตั้งต้น</p>
+      <p id="status4">Little(นิ้วก้อย) - EMG4: ค่าตั้งต้น</p>
     </div>
 
     <!-- ตั้งค่าข้อความแจ้งเตือน -->
@@ -168,23 +168,23 @@
       <h2>📝 ตั้งค่าข้อความแจ้งเตือน</h2>
       <div>
         <label>EMG 0:</label>
-        <input type="text" id="emg0Text" value="คุัีเ้่ิืที่สทม /gx]ujpoc]h;">
+        <input type="text" id="emg0Text" value="ค่าตั้งต้น EMG0">
       </div>
       <div>
         <label>EMG 1:</label>
-        <input type="text" id="emg1Text" value="✅ Resting (Normal)">
+        <input type="text" id="emg1Text" value="ค่าตั้งต้น EMG1">
       </div>
       <div>
         <label>EMG 2:</label>
-        <input type="text" id="emg2Text" value="⚠️ Light Movement Detected">
+        <input type="text" id="emg2Text" value="ค่าตั้งต้น EMG2">
       </div>
       <div>
         <label>EMG 3:</label>
-        <input type="text" id="emg3Text" value="🔔 Active Movement Detected">
+        <input type="text" id="emg3Text" value="ค่าตั้งต้น EMG3">
       </div>
       <div>
         <label>EMG 4:</label>
-        <input type="text" id="emg4Text" value="🚑 High Emergency!">
+        <input type="text" id="emg4Text" value="ค่าตั้งต้น EMG4">
       </div>
       <button id="saveText">💾 บันทึกข้อความ</button>
     </div>
@@ -206,14 +206,14 @@
     const volumeValue = document.getElementById('volumeValue');
 
     const alertSounds = {
-      0: 'help.mp3',   // นิ้วหัวแม่มือ
-      1: 'alarm.mp3',  // นิ้วชี้
-      2: 'alarm.mp3',  // นิ้วกลาง
-      3: 'alarm.mp3',  // นิ้วนาง
-      4: 'help.mp3'    // นิ้วก้อย
+      0: 'help.mp3',   // สำหรับ EMG0 (Thumb)
+      1: 'alarm.mp3',  // สำหรับ EMG1 (Index)
+      2: 'alarm.mp3',  // สำหรับ EMG2 (Middle)
+      3: 'alarm.mp3',  // สำหรับ EMG3 (Ring)
+      4: 'help.mp3'    // สำหรับ EMG4 (Little)
     };
 
-    // ตั้งค่า alert texts จาก input (EMG 0-4)
+    // ตั้งค่า alert texts เริ่มต้นจากค่าที่อยู่ใน input
     const alertTexts = {
       0: document.getElementById('emg0Text').value,
       1: document.getElementById('emg1Text').value,
@@ -226,20 +226,25 @@
       volumeValue.textContent = volumeSlider.value;
     });
 
-    // บันทึกข้อความแจ้งเตือนใหม่
+    // เมื่อกดปุ่มบันทึกข้อความ ให้ปรับปรุงค่า alertTexts และอัปเดตข้อความในส่วนแสดงสถานะนิ้ว
     document.getElementById('saveText').addEventListener('click', () => {
       alertTexts[0] = document.getElementById('emg0Text').value;
       alertTexts[1] = document.getElementById('emg1Text').value;
       alertTexts[2] = document.getElementById('emg2Text').value;
       alertTexts[3] = document.getElementById('emg3Text').value;
       alertTexts[4] = document.getElementById('emg4Text').value;
+
+      // อัปเดตข้อความในส่วนสถานะนิ้วตามชื่อที่กำหนดไว้
+      document.getElementById('status0').textContent = "Thumb(นิ้วโป้ง) - EMG0: " + alertTexts[0];
+      document.getElementById('status1').textContent = "Index(นิ้วชี้) - EMG1: " + alertTexts[1];
+      document.getElementById('status2').textContent = "Middle(นิ้วกลาง) - EMG2: " + alertTexts[2];
+      document.getElementById('status3').textContent = "Ring(นิ้วนาง) - EMG3: " + alertTexts[3];
+      document.getElementById('status4').textContent = "Little(นิ้วก้อย) - EMG4: " + alertTexts[4];
+
       alert("✅ บันทึกข้อความเรียบร้อย!");
     });
 
-    // เริ่มต้น lastHeartbeat ที่ 0 เพื่อให้สถานะเริ่มต้นเป็น Disconnected
     let lastHeartbeat = 0;
-
-    // เมื่อเชื่อมต่อกับ MQTT broker สำเร็จ (ไม่เปลี่ยนสถานะที่นี่)
     client.on('connect', () => {
       console.log('Connected to MQTT broker');
       client.subscribe('emg/#', (err) => {
@@ -249,12 +254,10 @@
       });
     });
 
-    // เมื่อได้รับข้อความจาก MQTT
     client.on('message', (topic, message) => {
       const msg = message.toString();
       console.log(`Topic: ${topic}, Message: ${msg}`);
       
-      // หากได้รับ heartbeat "5" ให้อัปเดตสถานะว่าเชื่อมต่อ
       if(topic === 'emg/heartbeat' && msg === "5"){
         lastHeartbeat = Date.now();
         connectionStatus.textContent = "EMG Connected";
@@ -266,22 +269,18 @@
         connectionStatus.style.backgroundColor = "#e74c3c";
       }
       else if(topic === 'emg/level'){
-        // แสดงผลระดับ EMG พร้อมข้อความแจ้งเตือนตาม config ที่ตั้งไว้
         const emgValue = parseInt(msg);
         alertMessage.textContent = "EMG " + emgValue + ": " + (alertTexts[emgValue] || "Unknown");
-
-        // รีเซ็ตแอนิเมชันเพื่อให้ข้อความเคลื่อนไหวใหม่
         alertMessage.classList.remove('animate');
         void alertMessage.offsetWidth;
         alertMessage.classList.add('animate');
-
         alertAudio.src = alertSounds[emgValue] || 'alarm.mp3';
         alertAudio.volume = parseFloat(volumeSlider.value);
         alertAudio.play();
       }
     });
 
-    // ตรวจสอบ heartbeat ทุกๆ 1 วินาที หากไม่ได้รับ heartbeat ภายใน 10 วินาที ให้แสดงสถานะ Disconnected
+    // ตรวจสอบ heartbeat ทุก 1 วินาที หากไม่ได้รับ heartbeat ภายใน 10 วินาที ให้แสดงสถานะ Disconnected
     setInterval(() => {
       if (Date.now() - lastHeartbeat > 10000) {
         connectionStatus.textContent = "EMG Disconnected";
