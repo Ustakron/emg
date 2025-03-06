@@ -27,6 +27,7 @@
       width: 100%;
       max-width: 600px;
       animation: fadeIn 1s ease;
+      position: relative;
     }
     @keyframes fadeIn {
       from { opacity: 0; transform: scale(0.95); }
@@ -122,21 +123,13 @@
     .emg-status p:hover {
       background-color: #e2e8f0;
     }
-    #emgConnectionBox {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background-color: #e74c3c;
-      color: white;
-      padding: 10px 15px;
-      border-radius: 5px;
-      font-size: 14px;
-      transition: background-color 0.3s ease;
-    }
   </style>
 </head>
 <body>
   <div class="container">
+    <!-- ย้ายสถานะเชื่อมต่อ EMG มาไว้ด้านบนสุด -->
+    <div id="emgConnectionBox" style="background-color:#e74c3c; color:white; padding:10px 15px; border-radius:5px; font-size:14px; margin-bottom:20px;">EMG Disconnected</div>
+    
     <h1>
       <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2980b9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M10 12l2 2 4-4m2 2a9 9 0 11-9-9 9 9 0 019 9z"/>
@@ -187,15 +180,11 @@
 
     <audio id="alertAudio" preload="auto"></audio>
   </div>
-
-  <div id="emgConnectionBox">EMG Disconnected</div>
   
   <script>
     // ตั้งค่า MQTT connection ผ่าน WebSocket
-    // ใช้ endpoint wss://test.mosquitto.org:8081 สำหรับการเชื่อมต่อแบบ secure
     const client = mqtt.connect('wss://test.mosquitto.org:8081');
 
-    // อ้างอิง element ในหน้า HTML
     const connectionStatus = document.getElementById('emgConnectionBox');
     const alertAudio = document.getElementById('alertAudio');
     const alertMessage = document.getElementById('alertMessage');
@@ -203,14 +192,14 @@
     const volumeValue = document.getElementById('volumeValue');
 
     const alertSounds = {
-      0: 'help.mp3',   // Thumb (ตรวจสอบให้แน่ใจว่าไฟล์มีอยู่ในโฟลเดอร์เดียวกัน)
+      0: 'help.mp3',   // Thumb
       1: 'alarm.mp3',  // Index
       2: 'alarm.mp3',  // Middle
       3: 'alarm.mp3',  // Ring
       4: 'help.mp3'    // Little
     };
 
-    // Alert texts ที่สามารถปรับแต่งได้
+    // ตั้งค่า alert texts จาก input (EMG 0-4)
     const alertTexts = {
       0: document.getElementById('emg0Text').value,
       1: document.getElementById('emg1Text').value,
@@ -238,7 +227,7 @@
     // เมื่อเชื่อมต่อกับ MQTT broker สำเร็จ
     client.on('connect', () => {
       console.log('Connected to MQTT broker');
-      connectionStatus.textContent = "Connected";
+      connectionStatus.textContent = "EMG Connected";
       connectionStatus.style.backgroundColor = "#2ecc71";
       // สมัครรับข้อมูลทุกหัวข้อที่ขึ้นต้นด้วย emg/
       client.subscribe('emg/#', (err) => {
@@ -253,7 +242,6 @@
       const msg = message.toString();
       console.log(`Topic: ${topic}, Message: ${msg}`);
       
-      // อัปเดต UI ตามหัวข้อที่ได้รับ
       if(topic === 'emg/heartbeat'){
         lastHeartbeat = Date.now();
         connectionStatus.textContent = "EMG Connected";
@@ -265,7 +253,7 @@
         connectionStatus.style.backgroundColor = "#e74c3c";
       }
       else if(topic === 'emg/level'){
-        // หากข้อความไม่ใช่ heartbeat ให้แสดงผลเป็นระดับ EMG
+        // แสดงผลระดับ EMG พร้อมข้อความที่ปรับแต่งได้
         const emgValue = parseInt(msg);
         alertMessage.textContent = "EMG " + emgValue + ": " + (alertTexts[emgValue] || "Unknown");
 
@@ -280,11 +268,12 @@
       }
     });
 
-    // ตรวจสอบ heartbeat ทุกๆ 1 วินาที
+    // ตรวจสอบ heartbeat ทุกๆ 1 วินาที และรีเซ็ตสถานะเมื่อไม่ได้รับค่า
     setInterval(() => {
       if (Date.now() - lastHeartbeat > 3000) {
         connectionStatus.textContent = "EMG Disconnected";
         connectionStatus.style.backgroundColor = "#e74c3c";
+        alertMessage.textContent = "Waiting for EMG Data...";
       }
     }, 1000);
   </script>
